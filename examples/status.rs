@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
 
     let mut connection = config.connect().await?;
 
-    let (status, _) = connection.status().await?;
+    let status = connection.status().await?;
 
     println!(
         "{} of {} player(s) online",

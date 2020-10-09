@@ -217,7 +217,7 @@ pub struct StatusConnection {
 impl StatusConnection {
     /// Sends and reads the packets for the
     /// ServerListPing status call.
-    pub async fn status(&mut self) -> Result<(StatusResponse, String)> {
+    pub async fn status_raw(&mut self) -> Result<String> {
         let handshake = protocol::HandshakePacket::new(
             self.protocol_version,
             self.address.to_string(),
@@ -240,9 +240,10 @@ impl StatusConnection {
             .await
             .context("failed to read response packet")?;
 
-        Ok((
-            serde_json::from_str(&response.body).map_err(|e| ServerError::InvalidJson(e))?,
-            response.body,
-        ))
+        Ok(response.body)
+    }
+
+    pub async fn status(&mut self) -> Result<StatusResponse> {
+        Ok(serde_json::from_str(&self.status_raw().await?).map_err(|e| ServerError::InvalidJson(e))?)
     }
 }
