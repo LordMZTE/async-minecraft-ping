@@ -17,7 +17,7 @@ pub enum ServerError {
     FailedToConnect,
 
     #[error("invalid JSON response: \"{0}\"")]
-    InvalidJson(String),
+    InvalidJson(serde_json::Error),
 }
 
 impl From<protocol::ProtocolError> for ServerError {
@@ -64,8 +64,65 @@ pub struct ServerPlayers {
 
 /// Contains the server's MOTD.
 #[derive(Debug, Deserialize)]
-pub struct ServerDescription {
+pub struct BigServerDescription {
+    #[serde(default)]
     pub text: String,
+    #[serde(default)]
+    pub extra: Vec<ExtraDescriptionPart>,
+}
+
+/// Contains a segment of the extra part of a server description
+#[derive(Debug, Deserialize)]
+pub struct ExtraDescriptionPart {
+    pub text: String,
+    #[serde(default)]
+    pub color: String,
+    #[serde(default)]
+    pub bold: bool,
+    #[serde(default)]
+    pub italic: bool,
+}
+
+// TODO maybe add some more mod lists? allthough i'm not aware of other servers sending mod lists.
+/// this is a response containing information about mods which modded servers send
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+pub enum ModInfo {
+    #[serde(rename = "FML")]
+    Forge {
+        #[serde(rename = "modList")]
+        mod_list: Vec<ForgeModInfo>,
+    },
+}
+
+/// this struct represents a modInfo entry as sent by forge
+#[derive(Debug, Deserialize)]
+pub struct ForgeModInfo {
+    pub modid: String,
+    pub version: String,
+}
+
+/// there are 2 variants of server descriptions
+/// the Simple variation is rarely used, but the minecraft client understands it
+/// so we should be compatible too
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum ServerDescription {
+    /// this is used if the `description` field in the JSON response is a String
+    Simple(String),
+    /// this is used if the `description` field in the JSON respons is a `BigServerDescription`
+    Big(BigServerDescription),
+}
+
+impl ServerDescription {
+    /// gets the text of this `ServerDescription` no matter if it is a
+    /// `Simple` or `Big` description
+    pub fn get_text(&self) -> &String {
+        match self {
+            Self::Big(desc) => &desc.text,
+            Self::Simple(desc) => desc,
+        }
+    }
 }
 
 /// The decoded JSON response from a status query over
@@ -84,6 +141,8 @@ pub struct StatusResponse {
     /// Optional field containing a path to the server's
     /// favicon.
     pub favicon: Option<String>,
+
+    pub modinfo: Option<ModInfo>,
 }
 
 const LATEST_PROTOCOL_VERSION: usize = 578;
@@ -158,7 +217,7 @@ pub struct StatusConnection {
 impl StatusConnection {
     /// Sends and reads the packets for the
     /// ServerListPing status call.
-    pub async fn status(&mut self) -> Result<StatusResponse> {
+    pub async fn status(&mut self) -> Result<(StatusResponse, String)> {
         let handshake = protocol::HandshakePacket::new(
             self.protocol_version,
             self.address.to_string(),
@@ -181,7 +240,9 @@ impl StatusConnection {
             .await
             .context("failed to read response packet")?;
 
-        Ok(serde_json::from_str(&response.body)
-            .map_err(|_| ServerError::InvalidJson(response.body))?)
+        Ok((
+            serde_json::from_str(&response.body).map_err(|e| ServerError::InvalidJson(e))?,
+            response.body,
+        ))
     }
 }
