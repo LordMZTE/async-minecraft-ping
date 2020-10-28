@@ -3,6 +3,7 @@
 ![crates.io](https://img.shields.io/crates/v/async-minecraft-ping)
 ![docs.rs](https://docs.rs/async-minecraft-ping/badge.svg?version=0.1.0)
 ![crates.io](https://img.shields.io/crates/l/async-minecraft-ping/0.1.0)
+![travis](https://travis-ci.org/LordMZTE/async-minecraft-ping.svg?branch=master)
 
 An async [ServerListPing](https://wiki.vg/Server_List_Ping) client implementation in Rust.
 
