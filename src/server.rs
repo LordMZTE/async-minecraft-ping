@@ -26,8 +26,10 @@ impl From<protocol::ProtocolError> for ServerError {
     }
 }
 
+pub type ForgeMods = Vec<ForgeModInfo>;
+
 /// Contains information about the server version.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ServerVersion {
     /// The server's Minecraft version, i.e. "1.15.2".
     pub name: String,
@@ -37,7 +39,7 @@ pub struct ServerVersion {
 }
 
 /// Contains information about a player.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ServerPlayer {
     /// The player's in-game name.
     pub name: String,
@@ -48,7 +50,7 @@ pub struct ServerPlayer {
 
 /// Contains information about the currently online
 /// players.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ServerPlayers {
     /// The configured maximum number of players for the
     /// server.
@@ -63,7 +65,7 @@ pub struct ServerPlayers {
 }
 
 /// Contains the server's MOTD.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct BigServerDescription {
     #[serde(default)]
     pub text: String,
@@ -72,7 +74,7 @@ pub struct BigServerDescription {
 }
 
 /// Contains a segment of the extra part of a server description
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ExtraDescriptionPart {
     pub text: String,
     #[serde(default)]
@@ -85,27 +87,41 @@ pub struct ExtraDescriptionPart {
 
 // TODO maybe add some more mod lists? allthough i'm not aware of other servers sending mod lists.
 /// this is a response containing information about mods which modded servers send
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum ModInfo {
     #[serde(rename = "FML")]
     Forge {
         #[serde(rename = "modList")]
-        mod_list: Vec<ForgeModInfo>,
+        mod_list: ForgeMods,
     },
 }
 
+impl ModInfo {
+    /// gets the forge mod info of this ModInfo. will only stay until there are other ModInfo types discovered
+    #[allow(irrefutable_let_patterns)]
+    pub fn to_forge(&self) -> &ForgeMods {
+        if let ModInfo::Forge { mod_list } = self {
+            mod_list
+        } else {
+            unreachable!()
+        }
+    }
+}
+
 /// this struct represents a modInfo entry as sent by forge
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ForgeModInfo {
+    #[serde(alias = "modId")]
     pub modid: String,
+    #[serde(alias = "modmarker")]
     pub version: String,
 }
 
 /// there are 2 variants of server descriptions
 /// the Simple variation is rarely used, but the minecraft client understands it
 /// so we should be compatible too
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum ServerDescription {
     /// this is used if the `description` field in the JSON response is a String
@@ -127,7 +143,7 @@ impl ServerDescription {
 
 /// The decoded JSON response from a status query over
 /// ServerListPing.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct StatusResponse {
     /// Information about the server's version.
     pub version: ServerVersion,
@@ -143,6 +159,34 @@ pub struct StatusResponse {
     pub favicon: Option<String>,
 
     pub modinfo: Option<ModInfo>,
+
+    /// information added by forge servers
+    #[serde(rename = "forgeData")]
+    pub forge_data: Option<ForgeData>,
+}
+
+impl StatusResponse {
+    /// gets the forge mod information of this resonse if present
+    pub fn forge_mod_info(&self) -> Option<&ForgeMods> {
+        self.modinfo
+            .as_ref()
+            .map(ModInfo::to_forge)
+            .or_else(|| self.forge_data.as_ref().map(|d| &d.mods))
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ForgeData {
+    pub channels: Vec<ForgeChannel>,
+    pub mods: ForgeMods,
+}
+
+/// packet channel of forge mods
+#[derive(Debug, Deserialize, Clone)]
+pub struct ForgeChannel {
+    pub res: String,
+    pub required: bool,
+    pub version: String,
 }
 
 const LATEST_PROTOCOL_VERSION: usize = 578;
@@ -244,6 +288,7 @@ impl StatusConnection {
     }
 
     pub async fn status(&mut self) -> Result<StatusResponse> {
-        Ok(serde_json::from_str(&self.status_raw().await?).map_err(|e| ServerError::InvalidJson(e))?)
+        Ok(serde_json::from_str(&self.status_raw().await?)
+            .map_err(|e| ServerError::InvalidJson(e))?)
     }
 }

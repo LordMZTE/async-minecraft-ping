@@ -1,6 +1,6 @@
 [package]
 name = "async-minecraft-ping"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["Jay Vana <jaysvana@gmail.com>", "LordMZTE <lord@mzte.de>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
