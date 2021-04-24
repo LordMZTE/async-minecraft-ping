@@ -1,6 +1,6 @@
 [package]
 name = "async-minecraft-ping"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Jay Vana <jaysvana@gmail.com>", "LordMZTE <lord@mzte.de>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -11,14 +11,14 @@ keywords = ["minecraft", "mc", "serverlistping"]
 categories = ["asynchronous", "api-bindings"]
 
 [dependencies]
-anyhow = "1.0"
-async-trait = "0.1"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-thiserror = "1.0"
-tokio = { version = "0.2", features = ["net", "io-util"] }
+anyhow = "1.0.40"
+async-trait = "0.1.50"
+serde = { version = "1.0.125", features = ["derive"] }
+serde_json = "1.0.64"
+thiserror = "1.0.24"
+tokio = { version = "1.5.0", features = ["net", "io-util"] }
 
 [dev-dependencies]
-anyhow = "1.0"
-structopt = "0.3"
-tokio = { version = "0.2", features = ["macros"] }
+anyhow = "1.0.40"
+structopt = "0.3.21"
+tokio = { version = "1.5.0", features = ["macros"] }
